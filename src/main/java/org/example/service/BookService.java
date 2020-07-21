@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface BookService {
+    List<Optional<Book>> getAll() throws CustomIOException;
     List<Optional<Book>> getPageOfBook(Page page) throws CustomIOException;
     Optional<Book> findByPrefix(String prefix) throws  CustomIOException;
     boolean save(Book book) throws CustomIOException;

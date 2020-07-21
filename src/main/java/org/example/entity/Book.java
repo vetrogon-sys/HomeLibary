@@ -17,6 +17,7 @@ public class Book implements Serializable {
     public String toString() {
         return "Book{" +
                 "name='" + name + '\'' +
-                "}\n";
+                ", description='" + description + '\'' +
+                '}';
     }
 }

@@ -17,9 +17,20 @@ public class User implements Serializable {
     private String password;
     private Role role;
 
-    private List<Message> messageList = new ArrayList<>();
+    private List<Message> messageList;
 
     public void addMessage(Message message) {
+        if (messageList == null) {
+            messageList = new ArrayList<>();
+        }
         messageList.add(message);
+    }
+
+    @Override
+    public String toString() {
+        return "User{" +
+                "login='" + login + '\'' +
+                ", role=" + role +
+                '}';
     }
 }

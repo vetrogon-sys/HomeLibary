@@ -1,6 +1,7 @@
 package org.example.controller;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.example.dto.LoginDto;
@@ -10,21 +11,21 @@ import org.example.exception.CustomIOException;
 import org.example.exception.CustomWrongDataException;
 import org.example.service.BookService;
 import org.example.service.UserService;
-import org.example.service.impl.BookServiceImpl;
-import org.example.service.impl.UserServiceImpl;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Scanner;
 
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class CatalogController {
     private static final long PAGE_SIZE = 5;
     private long currentPageNum = 0;
 
-    private BookService bookService = new BookServiceImpl();
-    private UserService userService = new UserServiceImpl();
+    private BookService bookService;
+    private UserService userService;
     private User currentUser;
 
     private void showMenu() {
@@ -64,7 +65,7 @@ public class CatalogController {
         }
     }
 
-    private void showBooks() {
+    public void showBooks() {
         Scanner in = new Scanner(System.in);
         Page page = Page.builder()
                 .number(currentPageNum)
@@ -74,8 +75,9 @@ public class CatalogController {
 
         do {
             try {
-                System.out.println(bookService.getPageOfBook(page));
-
+                for (Optional<Book> book : bookService.getPageOfBook(page)) {
+                    book.ifPresent(System.out::println);
+                }
                 System.out.println("1.Previous    2.Back    3.Next");
                 move = in.nextInt();
 
@@ -94,7 +96,6 @@ public class CatalogController {
         } while (move != 2);
 
         in.close();
-        start();
     }
 
     private RegisterDto registerForm() {
@@ -136,7 +137,7 @@ public class CatalogController {
         System.out.println("Enter login:");
         loginDto.setLogin(in.nextLine());
         System.out.println("Enter password");
-        loginDto.setLogin(in.nextLine());
+        loginDto.setPassword(in.nextLine());
         return loginDto;
     }
 
@@ -150,7 +151,15 @@ public class CatalogController {
                 }
             }
             showMenu();
-            int sw1 = in.nextInt();
+            int sw1;
+            String input = in.nextLine();
+            sw1 = Character.getNumericValue(input.charAt(0));
+
+            while (currentUser == null
+                    && sw1 != 1 && sw1 != 2 && sw1 != 8) {
+                System.out.println("You need login or register");
+                sw1 = in.nextInt();
+            }
             switch (sw1) {
                 case 1: {
                     if (currentUser != null) {
@@ -162,6 +171,7 @@ public class CatalogController {
                             System.out.println(e.getMessage());
                         }
                     }
+                    break;
                 }
                 case 2: {
                     if (currentUser != null) {
@@ -173,13 +183,14 @@ public class CatalogController {
                             System.out.println(e.getMessage());
                         }
                     }
+                    break;
                 }
                 case 3: {
-                    if (currentUser != null && Role.ADMIN.equals(currentUser.getRole())) {
+                    if (Role.ADMIN.equals(currentUser.getRole())) {
                         System.out.println("Enter book name");
-                        Book book = Book.builder()
-                                .name(in.nextLine())
-                                .build();
+                        String bookName = in.nextLine();
+                        Book book = new Book();
+                        book.setName(bookName);
                         try {
                             bookService.remove(book);
                         } catch (CustomIOException e) {
@@ -197,9 +208,10 @@ public class CatalogController {
                             System.out.println(e.getMessage());
                         }
                     }
+                    break;
                 }
                 case 4: {
-                    if (currentUser != null && Role.ADMIN.equals(currentUser.getRole())) {
+                    if (Role.ADMIN.equals(currentUser.getRole())) {
                         System.out.println("Enter book name");
                         Book book = Book.builder()
                                 .name(in.nextLine())
@@ -210,9 +222,10 @@ public class CatalogController {
                             System.out.println(e.getMessage());
                         }
                     }
+                    break;
                 }
                 case 5: {
-                    if (currentUser != null && Role.ADMIN.equals(currentUser.getRole())) {
+                    if (Role.ADMIN.equals(currentUser.getRole())) {
                         System.out.println("Enter book name");
                         Book book = null;
                         try {
@@ -231,6 +244,7 @@ public class CatalogController {
                             }
                         }
                     }
+                    break;
                 }
                 case 6: {
                     System.out.println("Enter part of book name");
@@ -239,6 +253,7 @@ public class CatalogController {
                     } catch (CustomIOException e) {
                         System.out.println(e.getMessage());
                     }
+                    break;
                 }
                 case 7: {
                     System.out.println("Enter name of user to send message");
@@ -253,6 +268,7 @@ public class CatalogController {
                     } catch (CustomIOException e) {
                         System.out.println(e.getMessage());
                     }
+                    break;
                 }
                 case 8: {
                     fExit = true;
@@ -262,6 +278,11 @@ public class CatalogController {
                         } catch (CustomIOException ignored) {
                         }
                     }
+                    break;
+                }
+                default: {
+                    System.out.println("You need to enter value from list");
+                    break;
                 }
             }
 
