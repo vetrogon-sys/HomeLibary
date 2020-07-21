@@ -5,10 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.example.dto.LoginDto;
 import org.example.dto.RegisterDto;
-import org.example.entity.Book;
-import org.example.entity.Page;
-import org.example.entity.Role;
-import org.example.entity.User;
+import org.example.entity.*;
 import org.example.exception.CustomIOException;
 import org.example.exception.CustomWrongDataException;
 import org.example.service.BookService;
@@ -16,6 +13,7 @@ import org.example.service.UserService;
 import org.example.service.impl.BookServiceImpl;
 import org.example.service.impl.UserServiceImpl;
 
+import java.util.List;
 import java.util.Scanner;
 
 @Setter
@@ -37,16 +35,33 @@ public class CatalogController {
             if (Role.ADMIN.equals(currentUser.getRole())) {
                 System.out.println("3. Remove book");
                 System.out.println("4. Add new book");
+                System.out.println("5. Change book");
             } else {
                 System.out.println("3. Suggest adding a book");
             }
-            System.out.println("5. Find book");
+            System.out.println("6. Find book");
+            System.out.println("7. Send message");
         } else {
             System.out.println("1. Register");
             System.out.println("2. Login");
         }
 
-        System.out.println("6. Exit");
+        System.out.println("8. Exit");
+    }
+
+    private void showMessages() {
+        List<Message> messageList = currentUser.getMessageList();
+        for (Message message : messageList) {
+            if (!message.isViewed()) {
+                System.out.println(message);
+                message.setViewed(true);
+            }
+        }
+        currentUser.setMessageList(messageList);
+        try {
+            userService.update(currentUser);
+        } catch (CustomIOException ignored) {
+        }
     }
 
     private void showBooks() {
@@ -89,7 +104,7 @@ public class CatalogController {
         System.out.println("Enter login, using form:");
         System.out.println("example@example.com");
         String login = in.nextLine();
-        while (login.matches("[a-zA-Z]@[a-zA-Z].[a-zA-Z]")) {
+        while (login.matches("[a-zA-Z1-9]@[a-zA-Z].[a-z]")) {
             System.out.println("Login does not match");
             System.out.println("Try again");
             login = in.nextLine();
@@ -129,6 +144,11 @@ public class CatalogController {
         boolean fExit = false;
         Scanner in = new Scanner(System.in);
         do {
+            if (currentUser != null) {
+                if (currentUser.getMessageList() != null) {
+                    showMessages();
+                }
+            }
             showMenu();
             int sw1 = in.nextInt();
             switch (sw1) {
@@ -157,21 +177,33 @@ public class CatalogController {
                 case 3: {
                     if (currentUser != null && Role.ADMIN.equals(currentUser.getRole())) {
                         System.out.println("Enter book name");
-                        Book book = new Book(in.nextLine());
+                        Book book = Book.builder()
+                                .name(in.nextLine())
+                                .build();
                         try {
                             bookService.remove(book);
                         } catch (CustomIOException e) {
                             System.out.println(e.getMessage());
                         }
                     } else {
-                        //TODO: add opportunity to send request adding book
+                        System.out.println("Enter name of book you want to add");
+                        Message message = Message.builder()
+                                .text(in.nextLine())
+                                .sender(currentUser)
+                                .build();
+                        try {
+                            userService.sendMessageToAdmins(message);
+                        } catch (CustomIOException e) {
+                            System.out.println(e.getMessage());
+                        }
                     }
-
                 }
                 case 4: {
                     if (currentUser != null && Role.ADMIN.equals(currentUser.getRole())) {
                         System.out.println("Enter book name");
-                        Book book = new Book(in.nextLine());
+                        Book book = Book.builder()
+                                .name(in.nextLine())
+                                .build();
                         try {
                             bookService.save(book);
                         } catch (CustomIOException e) {
@@ -180,6 +212,27 @@ public class CatalogController {
                     }
                 }
                 case 5: {
+                    if (currentUser != null && Role.ADMIN.equals(currentUser.getRole())) {
+                        System.out.println("Enter book name");
+                        Book book = null;
+                        try {
+                            book = bookService.findByPrefix(in.nextLine()).orElse(null);
+                        } catch (CustomIOException e) {
+                            System.out.println(e.getMessage());
+                        }
+
+                        if (book != null) {
+                            System.out.println("Enter book description");
+                            book.setDescription(in.nextLine());
+                            try {
+                                bookService.update(book);
+                            } catch (CustomIOException e) {
+                                System.out.println(e.getMessage());
+                            }
+                        }
+                    }
+                }
+                case 6: {
                     System.out.println("Enter part of book name");
                     try {
                         System.out.println(bookService.findByPrefix(in.nextLine()));
@@ -187,8 +240,28 @@ public class CatalogController {
                         System.out.println(e.getMessage());
                     }
                 }
-                case 6: {
+                case 7: {
+                    System.out.println("Enter name of user to send message");
+                    String userName = in.nextLine();
+                    System.out.println("Enter message");
+                    Message message = Message.builder()
+                            .text(in.nextLine())
+                            .sender(currentUser)
+                            .build();
+                    try {
+                        userService.sendMessage(userName, message);
+                    } catch (CustomIOException e) {
+                        System.out.println(e.getMessage());
+                    }
+                }
+                case 8: {
                     fExit = true;
+                    if (currentUser != null) {
+                        try {
+                            userService.update(currentUser);
+                        } catch (CustomIOException ignored) {
+                        }
+                    }
                 }
             }
 

@@ -16,7 +16,7 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public List<Optional<User>> getAll() throws CustomIOException {
-        try{
+        try {
             FileInputStream readData = new FileInputStream(USER_REPOSITORY_PATH);
             ObjectInputStream readStream = new ObjectInputStream(readData);
 
@@ -26,7 +26,7 @@ public class UserRepositoryImpl implements UserRepository {
             return userArrayList.stream()
                     .map(Optional::of)
                     .collect(Collectors.toList());
-        }catch (Exception e) {
+        } catch (Exception e) {
             throw new CustomIOException("Can't read data");
         }
     }
@@ -72,7 +72,36 @@ public class UserRepositoryImpl implements UserRepository {
         }
 
         userList.add(user);
-        try{
+        try {
+            FileOutputStream writeData = new FileOutputStream(USER_REPOSITORY_PATH);
+            ObjectOutputStream writeStream = new ObjectOutputStream(writeData);
+
+            writeStream.writeObject(userList);
+            writeStream.flush();
+            writeStream.close();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void update(User user) throws CustomIOException {
+        List<User> userList;
+        try {
+            userList = getAll().stream()
+                    .map(Optional::get)
+                    .collect(Collectors.toList());
+        } catch (CustomIOException ignored) {
+            userList = new ArrayList<>();
+        }
+
+        userList = userList.stream()
+                .filter(e -> !e.getLogin().equals(user.getLogin()))
+                .collect(Collectors.toList());
+
+        userList.add(user);
+        try {
             FileOutputStream writeData = new FileOutputStream(USER_REPOSITORY_PATH);
             ObjectOutputStream writeStream = new ObjectOutputStream(writeData);
 

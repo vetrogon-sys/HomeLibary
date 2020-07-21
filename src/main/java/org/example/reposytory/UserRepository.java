@@ -11,4 +11,5 @@ public interface UserRepository {
     List<Optional<User>> getAll() throws CustomIOException;
     Optional<User> findByLogin(String login) throws CustomIOException;
     void save(RegisterDto registerDto) throws CustomIOException;
+    void update(User user) throws  CustomIOException;
 }

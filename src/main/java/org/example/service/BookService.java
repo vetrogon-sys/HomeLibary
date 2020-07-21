@@ -12,4 +12,5 @@ public interface BookService {
     Optional<Book> findByPrefix(String prefix) throws  CustomIOException;
     boolean save(Book book) throws CustomIOException;
     boolean remove(Book book) throws CustomIOException;
+    boolean update(Book book) throws CustomIOException;
 }

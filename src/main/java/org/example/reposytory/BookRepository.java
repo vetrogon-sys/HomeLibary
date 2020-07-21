@@ -10,4 +10,5 @@ public interface BookRepository {
     List<Optional<Book>> getAll() throws CustomIOException;
     void save(Book book) throws CustomIOException;
     void remove(Book book) throws CustomIOException;
+    void update(Book book) throws CustomIOException;
 }

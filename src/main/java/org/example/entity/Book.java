@@ -11,6 +11,7 @@ import java.io.Serializable;
 @AllArgsConstructor
 public class Book implements Serializable {
     private String name;
+    private String description;
 
     @Override
     public String toString() {

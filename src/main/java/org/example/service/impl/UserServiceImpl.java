@@ -4,6 +4,8 @@ import lombok.Getter;
 import lombok.Setter;
 import org.example.dto.LoginDto;
 import org.example.dto.RegisterDto;
+import org.example.entity.Message;
+import org.example.entity.Role;
 import org.example.entity.User;
 import org.example.exception.CustomIOException;
 import org.example.exception.CustomWrongDataException;
@@ -12,7 +14,9 @@ import org.example.reposytory.impl.UserRepositoryImpl;
 import org.example.service.UserService;
 
 import java.util.Base64;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Setter
 @Getter
@@ -50,5 +54,50 @@ public class UserServiceImpl implements UserService {
         registerDto.setPassword(encodedPassword);
         userRepository.save(registerDto);
         return findByLogin(registerDto.getLogin());
+    }
+
+    @Override
+    public Optional<User> update(User user) throws CustomIOException {
+        if (findByLogin(user.getLogin()).isPresent()) {
+            return Optional.empty();
+        }
+        userRepository.update(user);
+        return findByLogin(user.getLogin());
+    }
+
+    @Override
+    public void sendMessage(String login, Message message) throws CustomIOException {
+        User user = userRepository.findByLogin(login).orElse(null);
+        if (user != null) {
+            user.addMessage(message);
+            update(user);
+        }
+    }
+
+    @Override
+    public void sendMessageToAdmins(Message message) throws CustomIOException {
+        List<User> userList = userRepository.getAll().stream()
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .filter(e -> e.getRole().equals(Role.ADMIN))
+                .collect(Collectors.toList());
+
+        for (User user : userList) {
+            user.addMessage(message);
+            update(user);
+        }
+    }
+
+    @Override
+    public void sendMessageToAll(Message message) throws CustomIOException {
+        List<User> userList = userRepository.getAll().stream()
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .collect(Collectors.toList());
+
+        for (User user : userList) {
+            user.addMessage(message);
+            update(user);
+        }
     }
 }

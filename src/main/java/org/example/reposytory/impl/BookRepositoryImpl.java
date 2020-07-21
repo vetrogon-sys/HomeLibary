@@ -60,6 +60,25 @@ public class BookRepositoryImpl implements BookRepository {
         dbRefresh(bookList);
     }
 
+    @Override
+    public void update(Book book) throws CustomIOException {
+        List<Book> bookList;
+        try {
+            bookList = getAll().stream()
+                    .map(Optional::get)
+                    .collect(Collectors.toList());
+        } catch (CustomIOException ignored) {
+            bookList = new ArrayList<>();
+        }
+
+
+        bookList = bookList.stream()
+                .filter(e -> !e.getName().equals(book.getName()))
+                .collect(Collectors.toList());
+        bookList.add(book);
+        dbRefresh(bookList);
+    }
+
     private void dbRefresh(List<Book> bookList) {
         try{
             FileOutputStream writeData = new FileOutputStream(BOOK_REPOSITORY_PATH);
