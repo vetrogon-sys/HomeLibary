@@ -10,6 +10,6 @@ import java.util.Optional;
 
 public interface UserService {
     Optional<User> findByLogin(String login) throws CustomIOException;
-    boolean login(LoginDto loginDto) throws CustomWrongDataException, CustomIOException;
-    boolean save(RegisterDto registerDto) throws CustomIOException;
+    Optional<User> login(LoginDto loginDto) throws CustomWrongDataException, CustomIOException;
+    Optional<User> save(RegisterDto registerDto) throws CustomIOException;
 }

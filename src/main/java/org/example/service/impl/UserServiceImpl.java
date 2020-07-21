@@ -27,24 +27,28 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public boolean login(LoginDto loginDto) throws CustomWrongDataException, CustomIOException {
+    public Optional<User> login(LoginDto loginDto) throws CustomWrongDataException, CustomIOException {
         Optional<User> user = findByLogin(loginDto.getLogin());
         if (user.isPresent()) {
             Base64.Decoder decoder = Base64.getDecoder();
             byte[] bytes = decoder.decode(user.get().getPassword());
-            return (new String(bytes)).equals(loginDto.getPassword());
+            if ((new String(bytes)).equals(loginDto.getPassword())) {
+                return user;
+            } else {
+                return Optional.empty();
+            }
         }
         throw new CustomWrongDataException("User with same login doesn't exist");
     }
 
     @Override
-    public boolean save(RegisterDto registerDto) throws CustomIOException {
+    public Optional<User> save(RegisterDto registerDto) throws CustomIOException {
         if (findByLogin(registerDto.getLogin()).isPresent()) {
-            return false;
+            return Optional.empty();
         }
         String encodedPassword = encoder.encodeToString(registerDto.getPassword().getBytes());
         registerDto.setPassword(encodedPassword);
         userRepository.save(registerDto);
-        return true;
+        return findByLogin(registerDto.getLogin());
     }
 }
