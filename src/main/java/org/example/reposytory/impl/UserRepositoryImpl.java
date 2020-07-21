@@ -6,9 +6,8 @@ import org.example.exception.CustomIOException;
 import org.example.reposytory.UserRepository;
 
 import java.io.*;
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -17,79 +16,72 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public List<Optional<User>> getAll() throws CustomIOException {
-        try {
-            InputStream isOb = new FileInputStream(USER_REPOSITORY_PATH);
-            int size = isOb.available();
+        try{
+            FileInputStream readData = new FileInputStream(USER_REPOSITORY_PATH);
+            ObjectInputStream readStream = new ObjectInputStream(readData);
 
-            byte[] userListBytes = new byte[size];
-            for (int i = 0; i < size; i++) {
-                userListBytes[i] = (byte) isOb.read();
-            }
-            if (userListBytes.length != 0) {
-                ByteArrayInputStream bis = new ByteArrayInputStream(userListBytes);
-                ObjectInputStream ois = new ObjectInputStream(bis);
-                List<User> userList;
+            ArrayList<User> userArrayList = (ArrayList<User>) readStream.readObject();
+            readStream.close();
 
-                try {
-                    userList = (List<User>) ois.readObject();
-                } catch (ClassNotFoundException e) {
-                    throw new CustomIOException("Data in file does not fit");
-                }
-
-                return userList.stream()
-                        .map(Optional::of)
-                        .collect(Collectors.toList());
-            } else {
-                throw new CustomIOException("There is not some data");
-            }
-        } catch (IOException e) {
-            throw new CustomIOException("Data read was failed");
+            return userArrayList.stream()
+                    .map(Optional::of)
+                    .collect(Collectors.toList());
+        }catch (Exception e) {
+            throw new CustomIOException("Can't read data");
         }
     }
 
     @Override
     public Optional<User> findByLogin(String login) throws CustomIOException {
-        for (Optional<User> user : getAll()) {
-            User current = user.orElse(null);
-            if (current != null
-                    && current.getLoginDetails().containsKey(login)) {
-                return Optional.of(current);
+        try {
+            List<Optional<User>> userList;
+            try {
+                userList = getAll();
+            } catch (CustomIOException e) {
+                userList = new ArrayList<>();
             }
+
+            for (Optional<User> user : userList) {
+                User current = user.orElse(null);
+                if (current != null
+                        && current.getLogin().equals(login)) {
+                    return Optional.of(current);
+                }
+            }
+            throw new CustomIOException("Something went's wrong. Can't read data");
+        } catch (CustomIOException e) {
+            return Optional.empty();
         }
-        throw new CustomIOException("Something went's wrong. Can't read data");
+
     }
 
     @Override
-    public void save(RegisterDto registerDto) {
-        OutputStream osOb = null;
-        Map<String, String> userDetails = new HashMap<>();
-        userDetails.put(registerDto.getLogin(), registerDto.getPassword());
+    public void save(RegisterDto registerDto) throws CustomIOException {
         User user = User.builder()
-                .loginDetails(userDetails)
+                .login(registerDto.getLogin())
+                .password(registerDto.getPassword())
                 .role(registerDto.getRole())
                 .build();
-
+        List<User> userList;
         try {
-            osOb = new FileOutputStream(USER_REPOSITORY_PATH);
+            userList = getAll().stream()
+                    .map(Optional::get)
+                    .collect(Collectors.toList());
+        } catch (CustomIOException ignored) {
+            userList = new ArrayList<>();
+        }
 
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            ObjectOutputStream oos = new ObjectOutputStream(bos);
-            oos.writeObject(user);
-            byte[] userBytes = bos.toByteArray();
+        userList.add(user);
+        try{
+            FileOutputStream writeData = new FileOutputStream(USER_REPOSITORY_PATH);
+            ObjectOutputStream writeStream = new ObjectOutputStream(writeData);
 
-            osOb.write(userBytes);
+            writeStream.writeObject(userList);
+            writeStream.flush();
+            writeStream.close();
 
-            osOb.close();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            if (osOb != null) {
-                try {
-                    osOb.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
         }
     }
 }

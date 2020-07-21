@@ -2,17 +2,17 @@ package org.example.entity;
 
 import lombok.*;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.io.Serializable;
 
 @Setter
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class User {
+public class User implements Serializable {
 
-    private Map<String, String> loginDetails = new HashMap<>();
+    private String login;
+    private String password;
     private Role role;
     private boolean logged;
 }

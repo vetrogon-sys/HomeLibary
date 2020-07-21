@@ -10,5 +10,5 @@ import java.util.Optional;
 public interface UserRepository {
     List<Optional<User>> getAll() throws CustomIOException;
     Optional<User> findByLogin(String login) throws CustomIOException;
-    void save(RegisterDto registerDto);
+    void save(RegisterDto registerDto) throws CustomIOException;
 }
