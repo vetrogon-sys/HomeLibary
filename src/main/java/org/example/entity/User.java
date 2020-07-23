@@ -12,12 +12,17 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class User implements Serializable {
-
     private String login;
     private String password;
     private Role role;
 
     private List<Message> messageList;
+
+    public User(String login, String password, Role role) {
+        this.login = login;
+        this.password = password;
+        this.role = role;
+    }
 
     public void addMessage(Message message) {
         if (messageList == null) {

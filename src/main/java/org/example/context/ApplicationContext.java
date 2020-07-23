@@ -1,48 +1,32 @@
 package org.example.context;
 
-import lombok.Getter;
-import org.example.service.BookService;
-import org.example.service.UserService;
-import org.example.service.impl.BookServiceImpl;
-import org.example.service.impl.UserServiceImpl;
+import lombok.NoArgsConstructor;
+import org.example.factory.Impl.ObjectFactoryImpl;
+import org.example.factory.ObjectFactory;
 
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
-@Getter
+@NoArgsConstructor
 public class ApplicationContext {
-    private static ApplicationContext context = null;
-    private BookService bookService;
-    private UserService userService;
+    private static volatile ApplicationContext context;
+    private ObjectFactory factory = new ObjectFactoryImpl();
+    private Map<Class, Object> cache = new ConcurrentHashMap<>();
 
-    private ApplicationContext() {
-        bookService = new BookServiceImpl();
-        userService = new UserServiceImpl();
-    }
-
-    public static ApplicationContext getContext() {
-        if (context == null) {
-            context = new ApplicationContext();
+    public <T> T getObject(Class<T> type) {
+        if (cache.containsKey(type)) {
+            return (T) cache.get(type);
         }
-        return context;
+        T t = factory.createObject(type);
+        cache.put(type, t);
+        return t;
     }
 
-    public void clear() {
-        try {
-            FileOutputStream writeData = new FileOutputStream("src/main/resources/db/BookRepository.txt");
-            ObjectOutputStream writeStream = new ObjectOutputStream(writeData);
-            writeStream.reset();
-            writeStream.close();
-
-            writeData = new FileOutputStream("src/main/resources/db/UserRepository.txt");
-            writeStream = new ObjectOutputStream(writeData);
-            writeStream.reset();
-            writeStream.close();
-
-        } catch (IOException e) {
-            e.printStackTrace();
+    public static ApplicationContext getInstance() {
+        ApplicationContext result = context;
+        if (result == null) {
+            context = result = new ApplicationContext();
         }
+        return result;
     }
-
 }

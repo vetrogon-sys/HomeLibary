@@ -4,13 +4,15 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.example.context.ApplicationContext;
 import org.example.dto.LoginDto;
 import org.example.dto.RegisterDto;
 import org.example.entity.*;
-import org.example.exception.CustomIOException;
 import org.example.exception.CustomWrongDataException;
 import org.example.service.BookService;
 import org.example.service.UserService;
+import org.example.service.impl.BookServiceImpl;
+import org.example.service.impl.UserServiceImpl;
 
 import java.util.List;
 import java.util.Optional;
@@ -24,8 +26,11 @@ public class CatalogController {
     private static final long PAGE_SIZE = 5;
     private long currentPageNum = 0;
 
-    private BookService bookService;
-    private UserService userService;
+    private BookService bookService = ApplicationContext.getInstance()
+            .getObject(BookServiceImpl.class);
+    private UserService userService = ApplicationContext.getInstance()
+            .getObject(UserServiceImpl.class);
+
     private User currentUser;
 
     private void showMenu() {
@@ -52,21 +57,19 @@ public class CatalogController {
 
     private void showMessages() {
         List<Message> messageList = currentUser.getMessageList();
+        System.out.println("Messages: {");
         for (Message message : messageList) {
             if (!message.isViewed()) {
-                System.out.println(message);
+                System.out.println("    " + message);
                 message.setViewed(true);
             }
         }
+        System.out.println("}");
         currentUser.setMessageList(messageList);
-        try {
-            userService.update(currentUser);
-        } catch (CustomIOException ignored) {
-        }
+        userService.update(currentUser);
     }
 
     public void showBooks() {
-        Scanner in = new Scanner(System.in);
         Page page = Page.builder()
                 .number(currentPageNum)
                 .size(PAGE_SIZE)
@@ -74,38 +77,35 @@ public class CatalogController {
         int move = 0;
 
         do {
-            try {
-                for (Optional<Book> book : bookService.getPageOfBook(page)) {
-                    book.ifPresent(System.out::println);
-                }
-                System.out.println("1.Previous    2.Back    3.Next");
+            Scanner in = new Scanner(System.in);
+
+            for (Optional<Book> book : bookService.getPageOfBook(page)) {
+                book.ifPresent(System.out::println);
+            }
+            System.out.println("1.Previous    2.Back    3.Next");
+            move = in.nextInt();
+
+            while (move > 3 || move < 1) {
                 move = in.nextInt();
+            }
 
-                while (move > 3 || move < 1) {
-                    move = in.nextInt();
-                }
-
-                if (move == 1) {
-                    page.previousPage();
-                } else if (move == 3) {
-                    page.nextPage();
-                }
-            } catch (CustomIOException e) {
-                e.printStackTrace();
+            if (move == 1) {
+                page.previousPage();
+            } else if (move == 3) {
+                page.nextPage();
             }
         } while (move != 2);
-
-        in.close();
     }
 
     private RegisterDto registerForm() {
         Scanner in = new Scanner(System.in);
+
         RegisterDto registerDto = new RegisterDto();
         //I now that need to check user input
         System.out.println("Enter login, using form:");
         System.out.println("example@example.com");
         String login = in.nextLine();
-        while (login.matches("[a-zA-Z1-9]@[a-zA-Z].[a-z]")) {
+        while (login.matches("[a-zA-Z]@[a-zA-Z].[a-z]")) {
             System.out.println("Login does not match");
             System.out.println("Try again");
             login = in.nextLine();
@@ -143,7 +143,6 @@ public class CatalogController {
 
     public void start() {
         boolean fExit = false;
-        Scanner in = new Scanner(System.in);
         do {
             if (currentUser != null) {
                 if (currentUser.getMessageList() != null) {
@@ -151,12 +150,13 @@ public class CatalogController {
                 }
             }
             showMenu();
+            Scanner in = new Scanner(System.in);
             int sw1;
             String input = in.nextLine();
             sw1 = Character.getNumericValue(input.charAt(0));
 
             while (currentUser == null
-                    && sw1 != 1 && sw1 != 2 && sw1 != 8) {
+                    && (sw1 >= 3 && sw1 <= 7) ) {
                 System.out.println("You need login or register");
                 sw1 = in.nextInt();
             }
@@ -165,10 +165,11 @@ public class CatalogController {
                     if (currentUser != null) {
                         currentUser = null;
                     } else {
-                        try {
-                            currentUser = userService.save(registerForm()).orElse(null);
-                        } catch (CustomIOException e) {
-                            System.out.println(e.getMessage());
+                        Optional<User> registeredUser = userService.save(registerForm());
+                        if (registeredUser.isPresent()) {
+                            currentUser = registeredUser.get();
+                        } else {
+                            System.out.println("Login is already in use");
                         }
                     }
                     break;
@@ -178,8 +179,13 @@ public class CatalogController {
                         showBooks();
                     } else {
                         try {
-                            currentUser = userService.login(loginForm()).orElse(null);
-                        } catch (CustomWrongDataException | CustomIOException e) {
+                            Optional<User> loggedUser = userService.login(loginForm());
+                            if (loggedUser.isPresent()) {
+                                currentUser = loggedUser.get();
+                            } else {
+                                System.out.println("Wrong login or password");
+                            }
+                        } catch (CustomWrongDataException e) {
                             System.out.println(e.getMessage());
                         }
                     }
@@ -191,10 +197,10 @@ public class CatalogController {
                         String bookName = in.nextLine();
                         Book book = new Book();
                         book.setName(bookName);
-                        try {
-                            bookService.remove(book);
-                        } catch (CustomIOException e) {
-                            System.out.println(e.getMessage());
+                        if (bookService.remove(book)) {
+                            System.out.println("Book was deleted");
+                        } else {
+                            System.out.println("Something went wrong.\nBook was't deleted");
                         }
                     } else {
                         System.out.println("Enter name of book you want to add");
@@ -202,11 +208,9 @@ public class CatalogController {
                                 .text(in.nextLine())
                                 .sender(currentUser)
                                 .build();
-                        try {
-                            userService.sendMessageToAdmins(message);
-                        } catch (CustomIOException e) {
-                            System.out.println(e.getMessage());
-                        }
+                        userService.sendMessageToAdmins(message);
+
+                        System.out.println("Sent for review");
                     }
                     break;
                 }
@@ -216,10 +220,10 @@ public class CatalogController {
                         Book book = Book.builder()
                                 .name(in.nextLine())
                                 .build();
-                        try {
-                            bookService.save(book);
-                        } catch (CustomIOException e) {
-                            System.out.println(e.getMessage());
+                        if (bookService.save(book)) {
+                            System.out.println("Book was saved");
+                        } else {
+                            System.out.println("Something went wrong.\nBook was't saved");
                         }
                     }
                     break;
@@ -227,20 +231,16 @@ public class CatalogController {
                 case 5: {
                     if (Role.ADMIN.equals(currentUser.getRole())) {
                         System.out.println("Enter book name");
-                        Book book = null;
-                        try {
-                            book = bookService.findByPrefix(in.nextLine()).orElse(null);
-                        } catch (CustomIOException e) {
-                            System.out.println(e.getMessage());
-                        }
+                        Book book;
+                        book = bookService.findByName(in.nextLine()).orElse(null);
 
                         if (book != null) {
                             System.out.println("Enter book description");
                             book.setDescription(in.nextLine());
-                            try {
-                                bookService.update(book);
-                            } catch (CustomIOException e) {
-                                System.out.println(e.getMessage());
+                            if (bookService.update(book)) {
+                                System.out.println("Information about book was updated");
+                            } else {
+                                System.out.println("Something went wrong.\nInformation about book was't updated");
                             }
                         }
                     }
@@ -248,11 +248,7 @@ public class CatalogController {
                 }
                 case 6: {
                     System.out.println("Enter part of book name");
-                    try {
-                        System.out.println(bookService.findByPrefix(in.nextLine()));
-                    } catch (CustomIOException e) {
-                        System.out.println(e.getMessage());
-                    }
+                    System.out.println(bookService.findByName(in.nextLine()));
                     break;
                 }
                 case 7: {
@@ -263,20 +259,13 @@ public class CatalogController {
                             .text(in.nextLine())
                             .sender(currentUser)
                             .build();
-                    try {
-                        userService.sendMessage(userName, message);
-                    } catch (CustomIOException e) {
-                        System.out.println(e.getMessage());
-                    }
+                    userService.sendMessage(userName, message);
                     break;
                 }
                 case 8: {
                     fExit = true;
                     if (currentUser != null) {
-                        try {
-                            userService.update(currentUser);
-                        } catch (CustomIOException ignored) {
-                        }
+                        userService.update(currentUser);
                     }
                     break;
                 }
@@ -287,7 +276,5 @@ public class CatalogController {
             }
 
         } while (!fExit);
-
-        in.close();
     }
 }
