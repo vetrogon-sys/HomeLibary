@@ -1,15 +1,13 @@
 package org.example.service.impl;
 
-import lombok.Getter;
 import lombok.Setter;
+import org.example.context.ApplicationContext;
 import org.example.dto.LoginDto;
 import org.example.dto.RegisterDto;
 import org.example.entity.Message;
 import org.example.entity.Role;
 import org.example.entity.User;
-import org.example.exception.CustomIOException;
 import org.example.exception.CustomWrongDataException;
-import org.example.reposytory.UserRepository;
 import org.example.reposytory.impl.UserRepositoryImpl;
 import org.example.service.UserService;
 
@@ -18,23 +16,23 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-@Setter
-@Getter
 public class UserServiceImpl implements UserService {
-    private UserRepository userRepository = new UserRepositoryImpl();
+    @Setter
+    private UserRepositoryImpl userRepository = ApplicationContext.getInstance()
+            .getObject(UserRepositoryImpl.class);
+
     private final Base64.Encoder encoder = Base64.getEncoder();
     private final Base64.Decoder decoder = Base64.getDecoder();
 
     @Override
-    public Optional<User> findByLogin(String login) throws CustomIOException {
+    public Optional<User> findByLogin(String login) {
         return userRepository.findByLogin(login);
     }
 
     @Override
-    public Optional<User> login(LoginDto loginDto) throws CustomWrongDataException, CustomIOException {
+    public Optional<User> login(LoginDto loginDto) throws CustomWrongDataException {
         Optional<User> user = findByLogin(loginDto.getLogin());
         if (user.isPresent()) {
-            Base64.Decoder decoder = Base64.getDecoder();
             byte[] bytes = decoder.decode(user.get().getPassword());
             if ((new String(bytes)).equals(loginDto.getPassword())) {
                 return user;
@@ -46,7 +44,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Optional<User> save(RegisterDto registerDto) throws CustomIOException {
+    public Optional<User> save(RegisterDto registerDto) {
         if (findByLogin(registerDto.getLogin()).isPresent()) {
             return Optional.empty();
         }
@@ -57,8 +55,8 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Optional<User> update(User user) throws CustomIOException {
-        if (findByLogin(user.getLogin()).isPresent()) {
+    public Optional<User> update(User user) {
+        if (!findByLogin(user.getLogin()).isPresent()) {
             return Optional.empty();
         }
         userRepository.update(user);
@@ -66,7 +64,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void sendMessage(String login, Message message) throws CustomIOException {
+    public void sendMessage(String login, Message message) {
         User user = userRepository.findByLogin(login).orElse(null);
         if (user != null) {
             user.addMessage(message);
@@ -75,27 +73,29 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void sendMessageToAdmins(Message message) throws CustomIOException {
-        List<User> userList = userRepository.getAll().stream()
+    public void sendMessageToAdmins(Message message) {
+        List<User> users = userRepository.getUserList()
+                .stream()
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .filter(e -> e.getRole().equals(Role.ADMIN))
                 .collect(Collectors.toList());
 
-        for (User user : userList) {
+        for (User user : users) {
             user.addMessage(message);
             update(user);
         }
     }
 
     @Override
-    public void sendMessageToAll(Message message) throws CustomIOException {
-        List<User> userList = userRepository.getAll().stream()
+    public void sendMessageToAll(Message message) {
+        List<User> users = userRepository.getUserList()
+                .stream()
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .collect(Collectors.toList());
 
-        for (User user : userList) {
+        for (User user : users) {
             user.addMessage(message);
             update(user);
         }
